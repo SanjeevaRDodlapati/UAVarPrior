@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+# Path: /home/sdodl001/UAVarPrior/config_examples/analysis_example.yml
+# Example configuration for analyzing model predictions with UAVarPrior
+
+# Operations to perform
+ops:
+  - analyze
+
+# Output directory for analysis results
+output_dir: outputs/analysis_results
+
+# Model configuration
+model:
+  class: simple_conv_model
+  classArgs:
+    input_channels: 4  # DNA: A, C, G, T
+    conv_channels: [32, 64, 128]
+    kernel_size: 7
+    pool_size: 2
+    dropout: 0.2
+    linear_features: [256, 128]
+    output_features: 1
+  path: outputs/simple_model/checkpoint_epoch_50.pt  # Path to saved model
+
+# Analyzer configuration
+analyzer:
+  class: uavarprior.analysis.variant_effect
+  args:
+    window_size: 20
+    step_size: 1
+    batch_size: 32
+    reference_fasta: path/to/reference.fa
+    variants_vcf: path/to/variants.vcf
+    output_format: vcf
+
+# Data configuration for analysis
+data:
+  regions_bed: path/to/regions.bed
+  sequence_length: 1000
+  flanking: 500

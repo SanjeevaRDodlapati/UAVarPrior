@@ -10,15 +10,15 @@ import math
 import numpy as np
 import tensorflow as tf
 
-from fugep.data import Genome
-from fugep.data.h5.methylH5Data import readCpgProf
+from ....data import Genome
+from ....data.h5.methylH5Data import readCpgProf
 from ...utils import get_reverse_complement_encoding
 from ...utils import _truncate_sequence
 
 from .utils import read_vcf_file
 from .gve_evaluator import GVarEvaluator
 
-logger = logging.getLogger("fugep")
+logger = logging.getLogger("uavarprior")
 
 class MethylVarEvaluator(GVarEvaluator):
     '''

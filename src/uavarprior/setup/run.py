@@ -15,7 +15,7 @@ import random
 import numpy as np
 import inspect
 
-import torchinfo
+# import torchinfo  # Temporarily commented out
 import torch.multiprocessing as mp
 
 # from tensorflow.keras.models import Model
@@ -36,6 +36,8 @@ from uavarprior.model import get_model
 # Original import: from uavarprior.data import get_dataset, get_dataloader
 # Fixed import: changed training to train and Trainer to StandardSGDTrainer
 from uavarprior.train import StandardSGDTrainer
+
+from .helper import try_import_peakgvarevaluator
 
 logger = logging.getLogger(__name__)
 
@@ -356,24 +358,32 @@ def _import_class(class_path):
         try:
             module_path, class_name = class_path.rsplit('.', 1)
             logger.debug(f"Importing module: {module_path}, class: {class_name}")
-            try:
-                # First try direct import
-                module = importlib.import_module(module_path)
-                return getattr(module, class_name)
-            except ImportError:
-                # Try with src. prefix if it doesn't have one
-                if not module_path.startswith('src.'):
-                    try:
-                        src_module_path = f"src.{module_path}"
-                        logger.debug(f"Direct import failed, trying with src. prefix: {src_module_path}")
-                        module = importlib.import_module(src_module_path)
+
+            # Define possible import paths based on module_path
+            base_path = module_path.replace('src.', '').replace('uavarprior.', '')
+            possible_paths = [
+                f"src.uavarprior.{base_path}",  # Most specific path first
+                f"uavarprior.{base_path}",
+                f"src.uavarprior.{base_path.rsplit('.', 1)[0]}",  # Try parent package
+                f"uavarprior.{base_path.rsplit('.', 1)[0]}",
+                "src.uavarprior",  # Legacy paths as fallback
+                "uavarprior"
+            ]
+
+            # Try each import path in order
+            for try_path in possible_paths:
+                try:
+                    logger.debug(f"Attempting import from {try_path}")
+                    module = importlib.import_module(try_path)
+                    if hasattr(module, class_name):
                         return getattr(module, class_name)
-                    except (ImportError, AttributeError) as e:
-                        logger.debug(f"Import with src. prefix failed: {e}")
-                return None
-            except AttributeError as e:
-                logger.debug(f"Module found but class {class_name} not found: {e}")
-                return None
+                except (ImportError, AttributeError) as e:
+                    logger.debug(f"Import failed for {try_path}: {e}")
+                    continue
+                    
+            logger.debug(f"All import attempts failed for {class_path}")
+            return None
+            
         except Exception as e:
             logger.debug(f"Error parsing class path {class_path}: {e}")
             return None
@@ -390,37 +400,31 @@ def _import_from_module(module_path, class_name):
         return None
         
     logger.debug(f"Importing from module: {module_path}, class: {class_name}")
-    try:
-        # Try direct import first
+    
+    # Define possible import paths based on module_path
+    base_path = module_path.replace('src.', '').replace('uavarprior.', '')
+    possible_paths = [
+        f"src.uavarprior.{base_path}",  # Most specific path first
+        f"uavarprior.{base_path}",
+        f"src.uavarprior.{base_path.rsplit('.', 1)[0] if '.' in base_path else base_path}",  # Try parent package
+        f"uavarprior.{base_path.rsplit('.', 1)[0] if '.' in base_path else base_path}",
+        "src.uavarprior",  # Legacy paths as fallback
+        "uavarprior"
+    ]
+    
+    # Try each import path in order
+    for try_path in possible_paths:
         try:
-            module = importlib.import_module(module_path)
-            class_obj = getattr(module, class_name)
-            return class_obj
-        except ImportError:
-            # If that fails, try with src. prefix if needed
-            if not module_path.startswith('src.'):
-                try:
-                    src_module_path = f"src.{module_path}"
-                    logger.debug(f"Direct import failed, trying with src. prefix: {src_module_path}")
-                    module = importlib.import_module(src_module_path)
-                    class_obj = getattr(module, class_name)
-                    return class_obj
-                except (ImportError, AttributeError) as e:
-                    logger.debug(f"Import with src. prefix failed: {e}")
-            # Try without src. prefix if it has one
-            elif module_path.startswith('src.'):
-                try:
-                    without_src_module_path = module_path[4:]  # Remove 'src.' prefix
-                    logger.debug(f"Trying without src. prefix: {without_src_module_path}")
-                    module = importlib.import_module(without_src_module_path)
-                    class_obj = getattr(module, class_name)
-                    return class_obj
-                except (ImportError, AttributeError) as e:
-                    logger.debug(f"Import without src. prefix failed: {e}")
-            return None
-    except (ImportError, AttributeError) as e:
-        logger.debug(f"Failed to import {class_name} from {module_path}: {e}")
-        return None
+            logger.debug(f"Attempting import from {try_path}")
+            module = importlib.import_module(try_path)
+            if hasattr(module, class_name):
+                return getattr(module, class_name)
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Import failed for {try_path}: {e}")
+            continue
+            
+    logger.debug(f"All import attempts failed for {class_name} from {module_path}")
+    return None
 
 def execute(configs):
     """
@@ -615,59 +619,40 @@ def execute(configs):
                             
                             # Try multiple import strategies in order
                             import_strategies = [
-                                # Strategy 1: Direct import as specified
-                                lambda: _import_class(class_path),
+                                # Strategy 1: Import from GVE module directly (most specific path)
+                                lambda: _import_from_module("src.uavarprior.predict.seq_ana.gve", "PeakGVarEvaluator"),
+                                lambda: _import_from_module("uavarprior.predict.seq_ana.gve", "PeakGVarEvaluator"),
                                 
-                                # Strategy 2: Try with src.uavarprior prefix
-                                lambda: _import_class(f"src.{class_path}" if not class_path.startswith('src.') else class_path),
+                                # Strategy 2: Import from seq_ana package
+                                lambda: _import_from_module("src.uavarprior.predict.seq_ana", "PeakGVarEvaluator"),
+                                lambda: _import_from_module("uavarprior.predict.seq_ana", "PeakGVarEvaluator"),
                                 
-                                # Strategy 3: Import from predict.seq_ana.gve directly (correct path for PeakGVarEvaluator)
-                                lambda: _import_from_module("uavarprior.predict.seq_ana.gve", class_path.split('.')[-1] 
-                                                                if '.' in class_path else class_path),
-                                
-                                # Strategy 4: Import from src.uavarprior.predict.seq_ana.gve
-                                lambda: _import_from_module("src.uavarprior.predict.seq_ana.gve", class_path.split('.')[-1] 
-                                                                if '.' in class_path else class_path),
-                                
-                                # Strategy 5: Legacy - Import from predict module directly
-                                lambda: _import_from_module("uavarprior.predict", class_path.split('.')[-1] 
-                                                                if '.' in class_path else class_path),
-                                
-                                # Strategy 6: Legacy - Import from src.uavarprior.predict
-                                lambda: _import_from_module("src.uavarprior.predict", class_path.split('.')[-1] 
-                                                                if '.' in class_path else class_path),
-                                
-                                # Strategy 7: For FuGEP compatibility - try fugep.predict
-                                lambda: _import_from_module("fugep.predict", class_path.split('.')[-1] 
-                                                                if '.' in class_path else class_path),
-                                
-                                # Strategy 8: Try direct import without package prefix if the class has a package path
-                                lambda: (importlib.import_module(class_path.rsplit('.', 1)[0]).
-                                        __getattribute__(class_path.rsplit('.', 1)[1])
-                                        if '.' in class_path else None)
+                                # Strategy 3: Legacy - try predict module directly
+                                lambda: _import_from_module("src.uavarprior.predict", "PeakGVarEvaluator"),
+                                lambda: _import_from_module("uavarprior.predict", "PeakGVarEvaluator"),
                             ]
-                            
+
                             # Try each strategy until one works
-                            for i, strategy in enumerate(import_strategies):
+                            success = False
+                            last_error = None
+                            for strategy in import_strategies:
                                 try:
-                                    logger.debug(f"Trying import strategy {i+1}")
-                                    class_obj = strategy()
-                                    if class_obj:
-                                        logger.info(f"Successfully found class {class_obj.__name__} using strategy {i+1}")
+                                    logger.debug(f"Trying import strategy: {strategy.__name__ if hasattr(strategy, '__name__') else 'anonymous'}")
+                                    analyzer_cls = strategy()
+                                    if analyzer_cls is not None:
+                                        analyze_seqs = analyzer_cls(**analyze_seqs_info)
+                                        success = True
+                                        logger.info(f"Successfully imported PeakGVarEvaluator using strategy {strategy.__name__ if hasattr(strategy, '__name__') else 'anonymous'}")
                                         break
                                 except Exception as e:
-                                    exceptions.append(f"Strategy {i+1} failed: {str(e)}")
+                                    last_error = e
+                                    logger.debug(f"Import strategy failed: {e}")
                                     continue
-                            
-                            if class_obj:
-                                logger.info(f"Successfully found class: {class_obj.__name__}")
-                                analyze_seqs = class_obj(**analyze_seqs_info)
-                            else:
-                                logger.error("Could not find analyzer class using any import strategy")
-                                for i, error in enumerate(exceptions):
-                                    logger.error(f"  {error}")
-                                raise ValueError(f"Failed to import analyzer class '{original_class_path}'. Check if the class exists and is properly imported.\n" +
-                                                  f"Full analyzer configuration: {original_analyzer_config}")
+
+                            if not success:
+                                error_msg = f"All import strategies failed. Last error: {last_error}"
+                                logger.error(error_msg)
+                                raise ImportError(error_msg)
                         else:
                             logger.error("No class path found in configuration")
                             logger.error(f"Original analyzer configuration: {original_analyze_seqs_info}")
@@ -677,14 +662,18 @@ def execute(configs):
                             logger.info(f"Attempting to use default analyzer: {default_class_path}")
                             
                             try:
-                                # Try multiple import strategies for the default class with the correct paths
+                                # Try multiple import strategies for the default class path in specified order
                                 successful_import = False
-                                for import_path in [
-                                    "src.uavarprior.predict.seq_ana.gve",
-                                    "uavarprior.predict.seq_ana.gve",
-                                    "src.uavarprior.predict",  # Legacy path
-                                    "uavarprior.predict"       # Legacy path
-                                ]:
+                                import_paths = [
+                                    "src.uavarprior.predict.seq_ana.gve",  # Most specific path first
+                                    "uavarprior.predict.seq_ana.gve",  
+                                    "src.uavarprior.predict.seq_ana",  # Try seq_ana package
+                                    "uavarprior.predict.seq_ana",
+                                    "src.uavarprior.predict",  # Legacy paths as fallback 
+                                    "uavarprior.predict"
+                                ]
+                                
+                                for import_path in import_paths:
                                     try:
                                         logger.debug(f"Trying to import PeakGVarEvaluator from {import_path}")
                                         module = importlib.import_module(import_path)
@@ -695,21 +684,28 @@ def execute(configs):
                                             break
                                     except ImportError as e:
                                         logger.debug(f"Could not import module {import_path}: {e}")
+                                        # Continue to next path
                                         continue
                                 
-                                # If all direct imports failed, try one more approach with direct module import
                                 if not successful_import:
-                                    try:
-                                        logger.debug("Trying to import with direct seq_ana.__init__ approach")
-                                        from src.uavarprior.predict.seq_ana import PeakGVarEvaluator
-                                        logger.info("Found PeakGVarEvaluator with direct import")
-                                        analyze_seqs = PeakGVarEvaluator(**analyze_seqs_info)
-                                        successful_import = True
-                                    except ImportError as e:
-                                        logger.debug(f"Direct import failed: {e}")
+                                    logger.info("All module imports failed, trying with individual class paths")
+                                    class_paths = [
+                                        "src.uavarprior.predict.seq_ana.gve.PeakGVarEvaluator",
+                                        "uavarprior.predict.seq_ana.gve.PeakGVarEvaluator"
+                                    ]
+                                    for path in class_paths:
+                                        try:
+                                            logger.debug(f"Attempting direct class import from {path}")
+                                            cls = _import_class(path)
+                                            if cls:
+                                                logger.info(f"Successfully imported PeakGVarEvaluator from {path}")
+                                                analyze_seqs = cls(**analyze_seqs_info)
+                                                successful_import = True
+                                                break
+                                        except Exception as e:
+                                            logger.debug(f"Direct class import failed from {path}: {e}")
                                 
                                 if not successful_import:
-                                    # If none of the imports worked, raise an error
                                     raise ImportError("Could not import PeakGVarEvaluator from any known location")
                             except Exception as e:
                                 logger.error(f"Failed to use default analyzer: {e}")

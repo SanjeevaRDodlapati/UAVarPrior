@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# Path: /home/sdodl001/UAVarPrior/config_examples/simple_train_example.yml
+# Example configuration for training a simple model with UAVarPrior
+
+# Operations to perform
+ops:
+  - train
+  - evaluate
+
+# Output directory for logs, checkpoints, etc.
+output_dir: outputs/simple_model
+
+# Model configuration
+model:
+  class: simple_conv_model
+  classArgs:
+    input_channels: 4  # DNA: A, C, G, T
+    conv_channels: [32, 64, 128]
+    kernel_size: 7
+    pool_size: 2
+    dropout: 0.2
+    linear_features: [256, 128]
+    output_features: 1
+  criterionArgs:
+    task: binary
+
+# Data configuration
+data:
+  dataset_class: uavarprior.data.sequences.OneHotSequence
+  batch_size: 64
+  num_workers: 4
+  pin_memory: true
+  train_args:
+    data_path: path/to/train_data.h5
+    seq_len: 1000
+  val_args:
+    data_path: path/to/val_data.h5
+    seq_len: 1000
+
+# Training configuration
+training:
+  epochs: 50
+  lr: 0.001
+  checkpoint_interval: 5
+  early_stopping:
+    monitor: val_loss
+    patience: 10
+    min_delta: 0.001

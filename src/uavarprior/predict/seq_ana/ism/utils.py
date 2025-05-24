@@ -2,7 +2,7 @@ import itertools
 
 import numpy as np
 
-from fugep.data import Genome
+from ....data import Genome
 
 
 def generateMutation(sequence, nMutBase = 1, refSeq = Genome,
@@ -23,7 +23,7 @@ def generateMutation(sequence, nMutBase = 1, refSeq = Genome,
         mutations evaluated, e.g. `nMutBase = 2` considers all
         pairs of SNPs.
     refSeq : class, optional
-        Default is `fugep.sequences.Genome`. The type of sequence
+        Default is `uavarprior.data.sequences.Genome`. The type of sequence
         that has been passed in.
     startPosition : int, optional
         Default is 0. The starting position of the subsequence to be
@@ -124,7 +124,7 @@ def mutateSeqEnc(encoding, mutations, refSeq = Genome):
         mutate and the base to which to mutate that position in the
         sequence.
     refSeq : class, optional
-        Default is `fugep.sequences.Genome`. A reference sequence
+        Default is `uavarprior.data.sequences.Genome`. A reference sequence
         from which to retrieve smaller sequences..
 
     Returns

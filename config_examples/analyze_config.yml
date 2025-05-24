@@ -1,0 +1,47 @@
+# Example configuration file for UAVarPrior Analysis
+# This file demonstrates the structure for running analysis operations
+
+# Operations to perform
+ops:
+  - analyze
+
+# Output directory for results
+output_dir: ./outputs/analysis_results
+
+# Model configuration
+model:
+  # Required: Model class name
+  class: SimpleConvModel
+  # Required for analyze: Path to saved model weights
+  path: ./outputs/saved_model.pt
+  # Optional: Arguments for model constructor (should match training config)
+  classArgs:
+    input_channels: 4
+    conv_channels: [16, 32, 64]
+    kernel_size: 3
+    pool_size: 2
+    dropout: 0.0  # Usually set to 0 for inference
+    linear_features: [128, 64]
+    output_features: 1
+
+# Analyzer configuration
+analyzer:
+  # Required: Analyzer class
+  class: uavarprior.analysis.ProfileAnalyzer
+  # Optional: Arguments for analyzer
+  args:
+    threshold: 0.5
+    metrics: ["accuracy", "precision", "recall", "f1"]
+    plot_results: true
+    save_predictions: true
+
+# Prediction data configuration
+prediction:
+  # Path to test/prediction data
+  data_path: ./data/test_data.h5
+  # Batch size for prediction
+  batch_size: 64
+  # Optional: Output format (csv, json, h5)
+  output_format: csv
+  # Optional: Features to analyze
+  features: ["gene_expression", "methylation"]

@@ -2,7 +2,7 @@
 from abc import ABCMeta
 import os
 
-from fugep.data import Genome
+from ....data import Genome
 from ..seq_analyzer import SeqAnalyzer
 from .utils import read_vcf_file
 

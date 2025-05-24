@@ -13,11 +13,21 @@ later, but that will cause problems--the code will get executed twice:
 import os
 import click
 import logging
+import sys
 from typing import Optional
 
-from uavarprior import __version__
-from uavarprior.setup import load_path, parse_configs_and_run
-from uavarprior.utils import setup_logging
+# Add the parent directory to sys.path to allow direct imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from uavarprior import __version__
+    from uavarprior.setup import load_path, parse_configs_and_run
+    from uavarprior.utils import setup_logging
+except ImportError:
+    # Fallback to local imports if package imports fail
+    from uavarprior.utils.logging import setup_logging
+    from uavarprior.setup import load_path, parse_configs_and_run
+    __version__ = "0.1.0"  # Default version if not available
 
 @click.group()
 @click.version_option(__version__)

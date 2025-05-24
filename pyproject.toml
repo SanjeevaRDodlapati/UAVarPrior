@@ -1,14 +1,17 @@
 [build-system]
-requires = ["setuptools", "wheel", "numpy", "cython"]
+requires = ["setuptools>=42", "wheel", "numpy>=1.19.0", "cython>=0.27.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "uavarprior"
-version = "0.1.0-dev"
-dynamic = [
-    "description",
-    "readme",
-    "classifiers",
-    "dependencies",
-    "scripts"
+version = "0.2.0"
+description = "Uncertainty-Aware Variational Prior framework for deep learning sequence models"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "BSD-3-Clause"}
+authors = [
+    {name = "Sanjeeva Reddy Dodlapati", email = "email@example.com"}
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]

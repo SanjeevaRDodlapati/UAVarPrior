@@ -5,7 +5,7 @@ Note
 This is originated from Selene's _variant_effect_prediction.py
 """
 
-from fugep.data.utils import formatChrom 
+from ....data.utils import formatChrom 
 
 
 VCF_REQUIRED_COLS = ["#CHROM", "POS", "ID", "REF", "ALT"]
@@ -52,7 +52,7 @@ def read_vcf_file(input_path,
         `seq_context` accepts a tuple of ints specifying the start and end
         radius surrounding the variant position or a single int if the
         start and end radius are the same length.
-    reference_sequence : fugep.sequences.Genome or None, optional
+    reference_sequence : uavarprior.data.sequences.Genome or None, optional
         Default is None. Only used if `seq_context` is not None.
         The reference genome.
 

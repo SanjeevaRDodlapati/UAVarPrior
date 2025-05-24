@@ -17,7 +17,7 @@ from .sgd_trainer import SGDTrainer
 
 
 logger = logging.getLogger("fugep")
-import torchinfo
+# import torchinfo  # Temporarily commented out
 
 def timeit(func):
     import time
@@ -247,11 +247,11 @@ class StandardSGDTrainer(SGDTrainer):
         """
 
         # if self.model.rank == 0:
-        logger.info("Pytorch model summary: {}".format(torchinfo.summary(
-                                self.model._model,
-                                input_size=(self.batchSize, 4,
-                                            self.sampler.getSequenceLength())
-                            )))
+        # logger.info("Pytorch model summary: {}".format(torchinfo.summary(
+        #                         self.model._model,
+        #                         input_size=(self.batchSize, 4,
+        #                                     self.sampler.getSequenceLength())
+        #                     )))  # Temporarily commented out
 
         validationPerformance = os.path.join(self.outputDir, "val_metrics.txt")
 

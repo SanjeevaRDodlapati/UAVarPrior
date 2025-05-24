@@ -255,7 +255,7 @@ def instantiate(proxy, bindings=None):
         return proxy
 
 
-def load(stream, environ=None, instantiate=True, **kwargs):
+def load(stream, environ=None, instantiate_objs=True, **kwargs):
     """Loads a YAML configuration from a string or file-like object.
 
     Parameters
@@ -267,7 +267,7 @@ def load(stream, environ=None, instantiate=True, **kwargs):
         A dictionary used for ${FOO} substitutions in addition to
         environment variables. If a key appears both in `os.environ`
         and this dictionary, the value in this dictionary is used.
-    instantiate : bool, optional
+    instantiate_objs : bool, optional
         If `False`, do not actually instantiate the objects but instead
         produce a nested hierarchy of `_Proxy` objects.
     **kwargs : dict
@@ -296,7 +296,16 @@ def load(stream, environ=None, instantiate=True, **kwargs):
         string = stream
     else:
         string = stream.read()
-    return yaml.load(string, Loader=yaml.SafeLoader, **kwargs)
+    
+    if environ is not None:
+        string = _preprocess(string, environ)
+        
+    proxy_graph = yaml.load(string, Loader=yaml.SafeLoader, **kwargs)
+    
+    if instantiate_objs:
+        return instantiate(proxy_graph)
+    else:
+        return proxy_graph
 
 
 class ModelConfig(BaseModel):
@@ -336,33 +345,8 @@ def load_path(path: str, instantiate: bool = False) -> Dict[str, Any]:
     Returns:
         Loaded configuration dictionary
     """
-    _, ext = os.path.splitext(path)
-    
-    try:
-        with open(path, 'r') as f:
-            if ext.lower() in ['.yaml', '.yml']:
-                config = yaml.safe_load(f)
-            elif ext.lower() == '.json':
-                config = json.load(f)
-            else:
-                raise ValueError(f"Unsupported file extension: {ext}")
-                
-        # Validate configuration structure
-        try:
-            Config(**config)
-            print("Configuration validated successfully")
-        except ValidationError as e:
-            print(f"Configuration validation error: {e}")
-            # Continue anyway but log the warning
-            
-        if instantiate:
-            # Code to instantiate objects defined in config
-            pass
-            
-        return config
-        
-    except Exception as e:
-        raise ValueError(f"Failed to load configuration from {path}: {str(e)}")
+    with open(path, 'r') as f:
+        return load(f, instantiate_objs=instantiate)
 
 
 def _try_to_import(tag_suffix):
@@ -578,14 +562,5 @@ def _construct_mapping(node, deep=False):
     return mapping
 
 
-# allow '!obj:' tags to be parsed as plain mappings or scalars
-# this avoids ConstructorError when encountering model class tags
-
-def _obj_constructor(loader, tag_suffix, node):
-    if isinstance(node, yaml.MappingNode):
-        return loader.construct_mapping(node)
-    if isinstance(node, yaml.SequenceNode):
-        return loader.construct_sequence(node)
-    return loader.construct_scalar(node)
-
-yaml.SafeLoader.add_multi_constructor('!obj:', _obj_constructor)
+# Initialize YAML constructors
+_initialize()
